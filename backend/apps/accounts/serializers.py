@@ -26,10 +26,10 @@ class LogoutSerializer(serializers.Serializer):
     def validate(self, attrs):
         try:
             self._token = RefreshToken(attrs["refresh"])
-        except TokenError:
+        except TokenError as exc:
             raise serializers.ValidationError(
                 {"refresh": "Invalid or expired token."}
-            )
+            ) from exc
         return attrs
 
     def save(self, **kwargs):

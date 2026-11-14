@@ -1,0 +1,21 @@
+# Project lint rules. Run from backend/:  ruff check .
+line-length = 100
+# Django 5.2's minimum Python; safe for any host that can run Django 5.2.
+target-version = "py310"
+src = ["."]
+extend-exclude = ["**/migrations/*.py"]
+
+[lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import sorting
+    "B",        # bugbear (likely bugs)
+    "UP",       # pyupgrade
+    "DJ",       # flake8-django
+    "RUF",      # ruff-specific
+]
+ignore = [
+    # Django/DRF class attributes (Meta, list_display, ...) are not mutable-default bugs.
+    "RUF012",
+]
