@@ -18,3 +18,9 @@ class ProductFilter(filters.FilterSet):
     def filter_category(self, queryset, name, value):
         """A parent category slug also matches its sub-categories."""
         return queryset.filter(Q(category__slug=value) | Q(category__parent__slug=value))
+
+
+class StaffProductFilter(ProductFilter):
+    """Admin list: the storefront filters plus visibility."""
+
+    is_active = filters.BooleanFilter(field_name="is_active")
