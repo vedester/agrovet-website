@@ -16,6 +16,8 @@ urlpatterns = [
     path("api/v1/catalog/", include("apps.catalog.urls")),
     path("api/v1/admin/catalog/", include("apps.catalog.staff_urls")),
     path("api/v1/admin/imports/", include("apps.product_imports.urls")),
+    path("api/v1/site/", include("apps.website.urls")),
+    path("api/v1/admin/site/", include("apps.website.staff_urls")),
 ]
 
 if settings.DEBUG:

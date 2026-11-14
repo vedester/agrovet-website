@@ -1,3 +1,4 @@
+# backend/apps/core/serializers.py
 import copy
 
 from .files import delete_file_after_commit
