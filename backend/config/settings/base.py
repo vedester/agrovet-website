@@ -32,6 +32,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.accounts",
     "apps.catalog",
+    "apps.product_imports",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -110,6 +111,7 @@ REST_FRAMEWORK = {
         "anon": "120/min",
         "user": "300/min",
         "login": "5/min",
+        "import": "20/min",
         "token_refresh": "30/min",
     },
 }
