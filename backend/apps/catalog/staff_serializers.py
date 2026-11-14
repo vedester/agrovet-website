@@ -101,7 +101,8 @@ class StaffProductSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         current = self.instance.stock_quantity if self.instance else None
         quantity = attrs.get("stock_quantity", current)
-        if quantity is not None and "is_in_stock" in attrs and attrs["is_in_stock"] != (quantity > 0):
+        wanted = attrs.get("is_in_stock")
+        if quantity is not None and wanted is not None and wanted != (quantity > 0):
             raise ValidationError(
                 {
                     "is_in_stock": (

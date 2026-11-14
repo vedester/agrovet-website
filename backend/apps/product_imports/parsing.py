@@ -87,7 +87,8 @@ def _read_xlsx(data: bytes) -> list[list[str]]:
             "The Excel file could not be read. Save it again as .xlsx or .csv."
         ) from exc
     try:
-        sheet = workbook["Products"] if "Products" in workbook.sheetnames else workbook.worksheets[0]
+        names = workbook.sheetnames
+        sheet = workbook["Products"] if "Products" in names else workbook.worksheets[0]
         rows = []
         blank_run = 0
         for raw in sheet.iter_rows(values_only=True):

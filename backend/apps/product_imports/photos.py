@@ -94,18 +94,25 @@ def _images_by_product(products: dict) -> dict[int, list[ProductImage]]:
     return grouped
 
 
+def _resolve(stem: str, products: dict):
+    """First (product, slot) reading of a filename stem that names a real product."""
+    for sku, slot in _candidates(stem):
+        product = products.get(sku)
+        if product is not None:
+            return product, slot
+    return None
+
+
 def _plan_one(name, products, images_by_product, taken, added) -> PhotoPlan:
     extension = _extension(name)
     if extension not in IMAGE_EXTENSIONS:
         return PhotoPlan(name, "unsupported", _unsupported_message(extension))
 
     stem = _stem(name)
-    for sku, slot in _candidates(stem):
-        product = products.get(sku)
-        if product is not None:
-            break
-    else:
+    resolved = _resolve(stem, products)
+    if resolved is None:
         return PhotoPlan(name, "unmatched", f'No product has the SKU "{stem}".')
+    product, slot = resolved
 
     found = {"sku": product.sku, "slot": slot, "product": product}
     if not 1 <= slot <= MAX_SLOT:
