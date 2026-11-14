@@ -112,6 +112,7 @@ REST_FRAMEWORK = {
         "user": "300/min",
         "login": "5/min",
         "import": "20/min",
+        "photo_import": "60/min",
         "token_refresh": "30/min",
     },
 }

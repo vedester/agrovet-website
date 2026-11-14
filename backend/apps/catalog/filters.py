@@ -1,7 +1,7 @@
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django_filters import rest_framework as filters
 
-from .models import Product
+from .models import Product, ProductImage
 
 
 class ProductFilter(filters.FilterSet):
@@ -21,6 +21,13 @@ class ProductFilter(filters.FilterSet):
 
 
 class StaffProductFilter(ProductFilter):
-    """Admin list: the storefront filters plus visibility."""
+    """Admin list: the storefront filters plus visibility and photo status."""
 
     is_active = filters.BooleanFilter(field_name="is_active")
+    has_image = filters.BooleanFilter(method="filter_has_image")
+
+    def filter_has_image(self, queryset, name, value):
+        photos = ProductImage.objects.filter(product=OuterRef("pk"))
+        if value:
+            return queryset.filter(Exists(photos))
+        return queryset.exclude(Exists(photos))

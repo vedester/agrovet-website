@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import ProductImport
+from .photos import MAX_FILENAMES_PER_CHECK
 
 
 class ImportUploadSerializer(serializers.Serializer):
@@ -29,3 +30,11 @@ class ProductImportSerializer(serializers.ModelSerializer):
             "report",
             "created_at",
         )
+
+
+class PhotoCheckSerializer(serializers.Serializer):
+    filenames = serializers.ListField(
+        child=serializers.CharField(max_length=255, allow_blank=True),
+        allow_empty=False,
+        max_length=MAX_FILENAMES_PER_CHECK,
+    )
