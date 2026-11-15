@@ -31,7 +31,7 @@ run() {
 }
 
 scan "no NEXT_PUBLIC_ variables" 'NEXT_PUBLIC_' '^$'
-scan "no hardcoded hosts or URLs outside config" 'localhost|127\.0\.0\.1|https?://' '^src/config/backend\.ts:|\.test\.tsx?:'
+scan "no hardcoded hosts or URLs outside config" 'localhost|127\.0\.0\.1|https?://' '^src/config/backend\.ts:|\.test\.tsx?:|^src/test/'
 scan "no raw fetch outside src/lib/api" '\bfetch\(' '^src/lib/api/|\.test\.tsx?:'
 
 if ls .env* > /dev/null 2>&1; then

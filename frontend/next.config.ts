@@ -5,6 +5,14 @@ import { getBackendOrigin } from "./src/config/backend";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Cache profiles used by cacheLife("...") in src/features/*/api.ts.
+  // stale: how long a browser keeps a page before checking again.
+  // revalidate: how often the server refreshes it in the background.
+  // expire: after this long without a refresh, the next visit waits for fresh data.
+  cacheLife: {
+    siteSettings: { stale: 60, revalidate: 60, expire: 3600 },
+    catalogue: { stale: 60, revalidate: 60, expire: 3600 },
+  },
   turbopack: {
     rules: {
       "*.css": {
