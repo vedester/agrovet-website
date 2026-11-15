@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Everything brand-specific lives in this file, so re-skinning
+ * the site for another client means editing these values and nothing else.
+ *
+ * Contrast rules: white text only on brand-600 or darker. On the amber accent
+ * always use dark (ink) text.
+ */
+@theme static {
+  /* Primary: deep forest green */
+  --color-brand-50: #f1f8f3;
+  --color-brand-100: #ddeee2;
+  --color-brand-200: #bddcc7;
+  --color-brand-300: #92c3a4;
+  --color-brand-400: #62a37b;
+  --color-brand-500: #418760;
+  --color-brand-600: #306b4b;
+  --color-brand-700: #27553c;
+  --color-brand-800: #204431;
+  --color-brand-900: #1b392a;
+  --color-brand-950: #0d2118;
+
+  /* Accent: sun amber, for calls to action and highlights */
+  --color-accent-50: #fff8eb;
+  --color-accent-100: #ffeccb;
+  --color-accent-200: #ffd78f;
+  --color-accent-300: #ffbd52;
+  --color-accent-400: #ffa224;
+  --color-accent-500: #f28308;
+  --color-accent-600: #d46303;
+  --color-accent-700: #af4607;
+
+  /* Warm neutrals */
+  --color-cream: #faf6ee;
+  --color-sand: #f1eadb;
+  --color-line: #e3dac6;
+  --color-ink: #1d2620;
+  --color-ink-soft: #56625a;
+
+  /* Status */
+  --color-danger: #b42318;
+  --color-danger-soft: #fdeceb;
+
+  /* Shape and depth */
+  --radius-card: 1.25rem;
+  --radius-pill: 999px;
+  --shadow-soft: 0 1px 2px rgb(29 38 32 / 0.05), 0 8px 24px -10px rgb(29 38 32 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(29 38 32 / 0.06), 0 18px 36px -14px rgb(29 38 32 / 0.22);
+}
+
+/* Fonts are loaded in layout.tsx; these map them to Tailwind's font utilities. */
+@theme inline {
+  --font-display: var(--font-display-face), Georgia, serif;
+  --font-sans: var(--font-sans-face), system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+    line-height: 1.1;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-accent-400);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-accent-200);
+    color: var(--color-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
