@@ -25,6 +25,9 @@ export default function ApiCheckPage() {
 }
 
 async function ApiReport() {
+  let report = null;
+  let errorMsg: string | null = null;
+
   try {
     const [site, categories, page, found] = await Promise.all([
       getSiteSettings(),
@@ -35,7 +38,7 @@ async function ApiReport() {
     const first = page?.items[0];
     const detail = first ? await getProduct(first.slug) : null;
 
-    const report = {
+    report = {
       site: {
         businessName: site.businessName || "(not set yet)",
         whatsappUrl: site.whatsappUrl || "(not set yet)",
@@ -59,17 +62,19 @@ async function ApiReport() {
           }
         : null,
     };
-
-    return (
-      <pre className="overflow-x-auto rounded-card bg-white p-5 text-sm shadow-soft ring-1 ring-line">
-        {JSON.stringify(report, null, 2)}
-      </pre>
-    );
   } catch (error) {
+    errorMsg = describeError(error);
+  }
+
+  if (errorMsg) {
     return (
-      <p className="rounded-card bg-danger-soft p-4 text-danger">
-        Backend problem: {describeError(error)}
-      </p>
+      <p className="rounded-card bg-danger-soft p-4 text-danger">Backend problem: {errorMsg}</p>
     );
   }
+
+  return (
+    <pre className="overflow-x-auto rounded-card bg-white p-5 text-sm shadow-soft ring-1 ring-line">
+      {JSON.stringify(report, null, 2)}
+    </pre>
+  );
 }

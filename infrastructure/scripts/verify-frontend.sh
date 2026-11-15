@@ -1,3 +1,4 @@
+# infrastructure/scripts/verify-frontend.sh
 #!/usr/bin/env bash
 # Frontend gate. Run before every commit; prints a PASS or FAIL line.
 # Enforces the proxy rules: the browser only talks to this site, and the

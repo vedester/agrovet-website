@@ -1,3 +1,4 @@
+// frontend/vitest.config.mts
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
@@ -10,5 +11,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    pool: "vmThreads",
+    fileParallelism: false,
   },
 });
