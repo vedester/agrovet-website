@@ -11,8 +11,8 @@ from .services import add_product_image
 class StaffCategorySerializer(
     ModelCleanSerializerMixin, DeleteReplacedFileMixin, serializers.ModelSerializer
 ):
-    product_count = serializers.IntegerField(read_only=True)
-    children_count = serializers.IntegerField(read_only=True)
+    product_count = serializers.IntegerField(read_only=True, default=0)
+    children_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Category

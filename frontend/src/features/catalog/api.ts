@@ -1,12 +1,13 @@
+// frontend/src/features/catalog/api.ts
 import { cacheLife } from "next/cache";
 
-import { normalizeQuery, type NormalizedQuery, type ProductQuery } from "./query";
+import { isCacheableQuery, normalizeQuery, type NormalizedQuery, type ProductQuery } from "./query";
 import { fetchCategories, fetchProduct, fetchProducts } from "./service";
 import type { Category, ProductDetail, ProductPage } from "./types";
 
 // Caching rules (see the "catalogue" profile in next.config.ts):
-// - browsing is cached;
-// - searching is never cached: search terms are unbounded and must be fresh;
+// - plain browsing is cached (see isCacheableQuery in query.ts);
+// - searches, price ranges and deep pages are never cached: their keys are unbounded;
 // - "not found" (null) is cached, outages are thrown and never cached.
 
 export async function getCategories(): Promise<Category[]> {
@@ -26,7 +27,7 @@ export async function getProduct(slug: string): Promise<ProductDetail | null> {
 /** Returns null when the requested page does not exist. */
 export async function getProducts(query: ProductQuery = {}): Promise<ProductPage | null> {
   const normalized = normalizeQuery(query);
-  return normalized.search ? fetchProducts(normalized) : getBrowsePage(normalized);
+  return isCacheableQuery(normalized) ? getBrowsePage(normalized) : fetchProducts(normalized);
 }
 
 async function getBrowsePage(query: NormalizedQuery): Promise<ProductPage | null> {

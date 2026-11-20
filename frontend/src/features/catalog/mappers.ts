@@ -1,3 +1,5 @@
+// frontend/src/features/catalog/mappers.ts
+// Converts backend data into frontend data
 import { toMediaPath } from "@/lib/api/media";
 import { toMoney } from "@/lib/money";
 

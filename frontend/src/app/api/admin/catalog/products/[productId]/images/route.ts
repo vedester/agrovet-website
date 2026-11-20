@@ -1,0 +1,143 @@
+// Directory: frontend/src/app/api/admin/catalog/products/[productId]/images/route.ts
+
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { uploadAdminProductImage } from "@/lib/api/admin-catalog";
+import { ApiError } from "@/lib/api/errors";
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const productIdSchema = z.coerce.number().int().positive();
+
+const altTextSchema = z.string().trim().max(200);
+
+const positionSchema = z.coerce.number().int().min(0).max(32767);
+
+function errorResponse(message: string, status: number, details?: unknown) {
+  return NextResponse.json(
+    { error: message, ...(details ? { details } : {}) },
+    {
+      status,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
+}
+
+function getApiError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.kind === "unreachable") {
+      return { message: "The catalogue service is unavailable.", status: 503 };
+    }
+
+    if (error.kind === "bad_response") {
+      return { message: "The catalogue service returned an invalid response.", status: 502 };
+    }
+
+    if (error.status === 401) {
+      return { message: "Your session has expired. Please sign in again.", status: 401 };
+    }
+
+    if (error.status === 403) {
+      return { message: "You are not authorized to upload product images.", status: 403 };
+    }
+
+    if (error.status === 404) {
+      return { message: "The requested product was not found.", status: 404 };
+    }
+
+    if (error.status === 400) {
+      return {
+        message: "The image was rejected. Check that it is a valid supported image.",
+        status: 400,
+      };
+    }
+
+    if (error.status === 429) {
+      return { message: "Too many requests. Please wait and try again.", status: 429 };
+    }
+  }
+
+  return { message: "Unable to upload the image. Please try again.", status: 500 };
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ productId: string }> },
+) {
+  const origin = request.headers.get("origin");
+
+  if (!origin || origin !== new URL(request.url).origin) {
+    return errorResponse("Invalid request origin.", 403);
+  }
+
+  const { productId: rawProductId } = await params;
+  const productId = productIdSchema.safeParse(rawProductId);
+
+  if (!productId.success) {
+    return errorResponse("Invalid product ID.", 400);
+  }
+
+  if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
+    return errorResponse("Content-Type must be multipart/form-data.", 415);
+  }
+
+  let incomingForm: FormData;
+
+  try {
+    incomingForm = await request.formData();
+  } catch {
+    return errorResponse("Invalid multipart form data.", 400);
+  }
+
+  const image = incomingForm.get("image");
+
+  if (!(image instanceof File) || image.size === 0) {
+    return errorResponse("Please select an image to upload.", 400);
+  }
+
+  if (image.size > MAX_IMAGE_BYTES) {
+    return errorResponse("Image size must not exceed 10 MB.", 400);
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+  if (!allowedTypes.includes(image.type)) {
+    return errorResponse("Only JPEG, PNG and WebP images are supported.", 400);
+  }
+
+  const altTextResult = altTextSchema.safeParse(incomingForm.get("alt_text") ?? "");
+
+  if (!altTextResult.success) {
+    return errorResponse("Alternative text must not exceed 200 characters.", 400);
+  }
+
+  const positionValue = incomingForm.get("position");
+  const positionResult =
+    positionValue === null ? undefined : positionSchema.safeParse(positionValue);
+
+  if (positionResult && !positionResult.success) {
+    return errorResponse("Image position must be a non-negative integer.", 400);
+  }
+
+  const outgoingForm = new FormData();
+
+  outgoingForm.append("image", image, image.name);
+  outgoingForm.append("alt_text", altTextResult.data);
+
+  if (positionResult?.success) {
+    outgoingForm.append("position", String(positionResult.data));
+  }
+
+  try {
+    const uploadedImage = await uploadAdminProductImage(productId.data, outgoingForm);
+
+    return NextResponse.json(uploadedImage, {
+      status: 201,
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error) {
+    const result = getApiError(error);
+    return errorResponse(result.message, result.status);
+  }
+}

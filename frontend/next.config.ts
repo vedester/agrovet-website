@@ -5,6 +5,7 @@ import { getBackendOrigin } from "./src/config/backend";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+
   // Cache profiles used by cacheLife("...") in src/features/*/api.ts.
   // stale: how long a browser keeps a page before checking again.
   // revalidate: how often the server refreshes it in the background.

@@ -1,3 +1,7 @@
+// frontend/src/features/catalog/types.ts
+//This file tells TypeScript what a category, product, photograph, or product listing should look like.
+
+//Think of it as a contract: when a component receives a ProductSummary, TypeScript knows which properties it can expect.
 import type { Money } from "@/lib/money";
 
 export type CategoryBrief = { name: string; slug: string };

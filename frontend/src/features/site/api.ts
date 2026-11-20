@@ -1,7 +1,8 @@
-import { cacheLife } from "next/cache";
+// This file exposes functions that other parts of your frontend can call without knowing the details of how Django is accessed
+
+import { cacheLife, cacheTag } from "next/cache";
 
 import { backendGet } from "@/lib/api/server";
-
 import { mapSiteSettings } from "./mappers";
 import { siteSettingsSchema } from "./schemas";
 import type { SiteSettings } from "./types";
@@ -13,7 +14,9 @@ import type { SiteSettings } from "./types";
  */
 export async function getSiteSettings(): Promise<SiteSettings> {
   "use cache";
+
   cacheLife("siteSettings");
+  cacheTag("site-settings");
 
   return mapSiteSettings(await backendGet("/site/", siteSettingsSchema));
 }

@@ -123,3 +123,19 @@ export function toBackendParams(query: NormalizedQuery): QueryParams {
     max_price: query.maxPrice,
   };
 }
+
+export const MAX_CACHED_PAGE = 20;
+
+/**
+ * Whether a query is worth keeping in the server cache. Free-form values (search
+ * text, price ranges) and deep pages create endless one-off entries that push
+ * useful ones out, so those are always fetched fresh.
+ */
+export function isCacheableQuery(query: NormalizedQuery): boolean {
+  return (
+    query.search === undefined &&
+    query.minPrice === undefined &&
+    query.maxPrice === undefined &&
+    query.page <= MAX_CACHED_PAGE
+  );
+}
