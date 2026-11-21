@@ -67,14 +67,37 @@ if not DATABASE_URL:
   raise RuntimeError("DATABASE_URL must be set in production.")
 DATABASES = _build_databases_from_url(DATABASE_URL)
 
-# --- Supabase Storage ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-if not SUPABASE_URL:
-  raise RuntimeError("SUPABASE_URL must be set in production.")
+# --- Supabase Storage (S3-compatible) ---
 
-SUPABASE_STORAGE_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "media").strip()
-SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
-SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+SUPABASE_S3_ENDPOINT = os.environ["SUPABASE_S3_ENDPOINT"].strip()
+SUPABASE_S3_REGION = os.environ.get(
+    "SUPABASE_S3_REGION", "eu-west-1"
+).strip()
 
-if not SUPABASE_SECRET_KEY:
-  raise RuntimeError("SUPABASE_SECRET_KEY must be set in production.")
+SUPABASE_STORAGE_BUCKET = os.environ.get(
+    "SUPABASE_STORAGE_BUCKET", "media"
+).strip()
+
+AWS_ACCESS_KEY_ID = os.environ["SUPABASE_S3_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = os.environ["SUPABASE_S3_SECRET_ACCESS_KEY"]
+
+AWS_STORAGE_BUCKET_NAME = SUPABASE_STORAGE_BUCKET
+AWS_S3_ENDPOINT_URL = SUPABASE_S3_ENDPOINT
+AWS_S3_REGION_NAME = SUPABASE_S3_REGION
+AWS_S3_CUSTOM_DOMAIN = (
+    "nxmruecdnsgwobsjnybf.supabase.co/storage/v1/object/public/media"
+)
+
+AWS_S3_ADDRESSING_STYLE = "path"
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
