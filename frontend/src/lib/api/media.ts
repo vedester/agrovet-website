@@ -1,19 +1,31 @@
-// Only used to resolve a relative or absolute address into a clean path.
+// Resolves backend media paths and approved public Supabase image URLs.
 const RESOLVE_BASE = "file:///";
 
-/**
- * Turns an image address from the backend into a same-site path (/media/...).
- *
- * The browser must never learn the backend address: photos are served through
- * the /media rewrite in next.config.ts. Anything that does not resolve to a
- * /media/ path (including attempts to climb out of it) is rejected with null.
- */
+const SUPABASE_ORIGIN = "https://nxmruecdnsgwobsjnybf.supabase.co";
+const SUPABASE_MEDIA_PREFIX = "/storage/v1/object/public/media/";
+
 export function toMediaPath(raw: string): string | null {
-  let pathname: string;
+  let url: URL;
+
   try {
-    pathname = new URL(raw, RESOLVE_BASE).pathname;
+    url = new URL(raw, RESOLVE_BASE);
   } catch {
     return null;
   }
-  return pathname.startsWith("/media/") ? pathname : null;
+
+  // Continue supporting images served through Django's /media/ route.
+  if (url.pathname.startsWith("/media/")) {
+    return url.pathname;
+  }
+
+  // Accept only public images from our specific Supabase media bucket.
+  if (
+    url.protocol === "https:" &&
+    url.origin === SUPABASE_ORIGIN &&
+    url.pathname.startsWith(SUPABASE_MEDIA_PREFIX)
+  ) {
+    return url.toString();
+  }
+
+  return null;
 }
