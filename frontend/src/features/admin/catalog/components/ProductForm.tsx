@@ -1,10 +1,15 @@
-// Directory: frontend/src/features/admin/catalog/components/ProductForm.tsx
 
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
-// import { useEffect, useState, useMemo, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 
 type CategoryOption = {
   id: number;
@@ -53,13 +58,12 @@ export default function ProductForm({ productId }: ProductFormProps) {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
 
-  //  /Image state
+  // Image state
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageError, setImageError] = useState("");
-
   const [imagePreview, setImagePreview] = useState("");
   const imagePreviewUrlRef = useRef<string | null>(null);
-  
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isImageDragging, setIsImageDragging] = useState(false);
 
   const [trackStock, setTrackStock] = useState(true);
@@ -78,8 +82,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState("");
   const [imageUploaded, setImageUploaded] = useState(false);
+  const [isReadyForNextProduct, setIsReadyForNextProduct] = useState(false);
 
-  
   useEffect(() => {
     const controller = new AbortController();
 
@@ -111,7 +115,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
 
-        setCategoryError(err instanceof Error ? err.message : "Unable to load categories.");
+        setCategoryError(
+          err instanceof Error ? err.message : "Unable to load categories.",
+        );
       } finally {
         if (!controller.signal.aborted) {
           setCategoriesLoading(false);
@@ -126,7 +132,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
   useEffect(() => {
     if (!productId) {
-      // setProductLoading(false);
       return;
     }
 
@@ -173,7 +178,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
         setDescription(product.description);
 
         setTrackStock(product.stock_quantity !== null);
-        setStockQuantity(product.stock_quantity === null ? "0" : String(product.stock_quantity));
+        setStockQuantity(
+          product.stock_quantity === null ? "0" : String(product.stock_quantity),
+        );
         setManualAvailability(product.is_in_stock);
 
         setRequiresAdvice(product.requires_advice);
@@ -184,7 +191,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
 
-        setError(err instanceof Error ? err.message : "Unable to load the product.");
+        setError(
+          err instanceof Error ? err.message : "Unable to load the product.",
+        );
       } finally {
         if (!controller.signal.aborted) {
           setProductLoading(false);
@@ -207,7 +216,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
   }, []);
 
   function updateSelectedImage(file: File | null) {
-    // Release the previous preview URL before creating another one.
     if (imagePreviewUrlRef.current) {
       URL.revokeObjectURL(imagePreviewUrlRef.current);
       imagePreviewUrlRef.current = null;
@@ -220,6 +228,49 @@ export default function ProductForm({ productId }: ProductFormProps) {
     setImagePreview(previewUrl ?? "");
   }
 
+  function resetProductForm() {
+    // Clear basic information.
+    setName("");
+    setSku("");
+    setBrand("");
+    setPackSize("");
+    setCategory("");
+    setPrice("");
+    setDescription("");
+
+    // Restore inventory defaults.
+    setTrackStock(true);
+    setStockQuantity("0");
+    setManualAvailability(true);
+
+    // Restore storefront defaults.
+    setRequiresAdvice(false);
+    setFeatured(false);
+    setActive(true);
+
+    // Clear image selection and preview.
+    updateSelectedImage(null);
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+
+    setCurrentImage(null);
+    setImageError("");
+    setIsImageDragging(false);
+
+    // Clear upload state.
+    setCreatedProductId(null);
+    setImageUploadError("");
+    setImageUploaded(false);
+
+    // Clear previous errors.
+    setError("");
+
+    // Mark the form as ready for another product.
+    setIsReadyForNextProduct(true);
+  }
+
   function processImageFile(file?: File, input?: HTMLInputElement | null) {
     setImageError("");
 
@@ -230,7 +281,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
     if (!allowedTypes.includes(file.type)) {
       updateSelectedImage(null);
+
       if (input) input.value = "";
+
       setImageError(
         "This file format is not supported. Choose a JPEG, PNG or WebP image.",
       );
@@ -239,7 +292,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
     if (file.size > maxSize) {
       updateSelectedImage(null);
+
       if (input) input.value = "";
+
       setImageError("This image is larger than 10 MB. Choose a smaller image.");
       return;
     }
@@ -257,7 +312,10 @@ export default function ProductForm({ productId }: ProductFormProps) {
     processImageFile(event.dataTransfer.files?.[0]);
   }
 
-  async function uploadSelectedImage(productId: number, file: File) {
+  async function uploadSelectedImage(
+    productId: number,
+    file: File,
+  ): Promise<boolean> {
     setImageUploading(true);
     setImageUploadError("");
     setImageUploaded(false);
@@ -269,11 +327,14 @@ export default function ProductForm({ productId }: ProductFormProps) {
       formData.append("alt_text", `${name.trim()} product image`);
       formData.append("position", "0");
 
-      const response = await fetch(`/api/admin/catalog/products/${productId}/images`, {
-        method: "POST",
-        body: formData,
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/admin/catalog/products/${productId}/images`,
+        {
+          method: "POST",
+          body: formData,
+          cache: "no-store",
+        },
+      );
 
       let data: unknown = null;
 
@@ -292,12 +353,15 @@ export default function ProductForm({ productId }: ProductFormProps) {
       }
 
       setImageUploaded(true);
+      return true;
     } catch (err) {
       setImageUploadError(
         err instanceof Error
           ? err.message
           : "The product was saved, but the image upload failed. Please try again.",
       );
+
+      return false;
     } finally {
       setImageUploading(false);
     }
@@ -310,6 +374,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
     setSuccess("");
     setImageUploadError("");
     setImageUploaded(false);
+    setIsReadyForNextProduct(false);
 
     if (!category) {
       setError("Please select a product category.");
@@ -349,7 +414,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
       const editing = Boolean(productId);
 
       const response = await fetch(
-        editing ? `/api/admin/catalog/products/${productId}` : "/api/admin/catalog/products/create",
+        editing
+          ? `/api/admin/catalog/products/${productId}`
+          : "/api/admin/catalog/products/create",
         {
           method: editing ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -395,12 +462,33 @@ export default function ProductForm({ productId }: ProductFormProps) {
           : `Product "${payload.name}" was created successfully.`,
       );
 
+      // Upload the image before clearing the form.
       if (selectedImage) {
-        await uploadSelectedImage(savedProductId, selectedImage);
+        const imageUploadSucceeded = await uploadSelectedImage(
+          savedProductId,
+          selectedImage,
+        );
+
+        // Keep the form intact if the image upload fails.
+        // The user can retry without creating the product again.
+        if (!imageUploadSucceeded) {
+          return;
+        }
+      }
+
+      // Only reset the Add Product form after the full operation succeeds.
+      if (!editing) {
+        resetProductForm();
+
+        setSuccess(
+          `Product "${payload.name}" was created successfully. The form is ready for another product.`,
+        );
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Something went wrong while saving the product.",
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while saving the product.",
       );
     } finally {
       setSubmitting(false);
@@ -420,11 +508,13 @@ export default function ProductForm({ productId }: ProductFormProps) {
           </Link>
 
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Add a product
+            {productId ? "Edit product" : "Add a product"}
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Create a product record for your agrovet catalogue.
+            {productId
+              ? "Update the product information in your agrovet catalogue."
+              : "Create a product record for your agrovet catalogue."}
           </p>
         </div>
 
@@ -449,13 +539,19 @@ export default function ProductForm({ productId }: ProductFormProps) {
         >
           <div>
             <p className="font-semibold text-emerald-800">{success}</p>
+
             <p className="mt-1 text-sm text-emerald-700">
-              The product is now saved in your catalogue.
+              {isReadyForNextProduct
+                ? "You can now enter the details of your next product."
+                : "The product is now saved in your catalogue."}
             </p>
+
             {selectedImage && (
               <div className="mt-3">
                 {imageUploading && (
-                  <p className="text-sm text-emerald-700">Uploading product image...</p>
+                  <p className="text-sm text-emerald-700">
+                    Uploading product image...
+                  </p>
                 )}
 
                 {imageUploaded && (
@@ -472,15 +568,30 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (createdProductId && selectedImage) {
-                          void uploadSelectedImage(createdProductId, selectedImage);
+                          const uploaded = await uploadSelectedImage(
+                            createdProductId,
+                            selectedImage,
+                          );
+
+                          if (uploaded && !productId) {
+                            const savedName = name.trim();
+
+                            resetProductForm();
+
+                            setSuccess(
+                              `Product "${savedName}" was created successfully. The form is ready for another product.`,
+                            );
+                          }
                         }
                       }}
                       disabled={imageUploading}
                       className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                     >
-                      {imageUploading ? "Retrying upload..." : "Retry image upload"}
+                      {imageUploading
+                        ? "Retrying upload..."
+                        : "Retry image upload"}
                     </button>
                   </div>
                 )}
@@ -500,7 +611,10 @@ export default function ProductForm({ productId }: ProductFormProps) {
       <form onSubmit={handleSubmit} className="space-y-7">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-900">Basic information</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Basic information
+            </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Identify the product and organize it in your catalogue.
             </p>
@@ -511,6 +625,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
               <label htmlFor="product-name" className={labelClass}>
                 Product name <span className="text-red-500">*</span>
               </label>
+
               <input
                 id="product-name"
                 className={inputClass}
@@ -526,6 +641,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
               <label htmlFor="product-sku" className={labelClass}>
                 SKU <span className="text-red-500">*</span>
               </label>
+
               <input
                 id="product-sku"
                 className={inputClass}
@@ -535,13 +651,17 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 maxLength={40}
                 required
               />
-              <p className="mt-1.5 text-xs text-slate-400">Unique product identification code.</p>
+
+              <p className="mt-1.5 text-xs text-slate-400">
+                Unique product identification code.
+              </p>
             </div>
 
             <div>
               <label htmlFor="product-category" className={labelClass}>
                 Category <span className="text-red-500">*</span>
               </label>
+
               <select
                 id="product-category"
                 className={inputClass}
@@ -553,6 +673,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 <option value="">
                   {categoriesLoading ? "Loading categories..." : "Select category"}
                 </option>
+
                 {categories.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.parent ? "— " : ""}
@@ -561,17 +682,24 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 ))}
               </select>
 
-              {categoryError && <p className="mt-2 text-xs text-red-600">{categoryError}</p>}
-
-              {!categoriesLoading && categories.length === 0 && !categoryError && (
-                <p className="mt-2 text-xs text-amber-700">No active categories are available.</p>
+              {categoryError && (
+                <p className="mt-2 text-xs text-red-600">{categoryError}</p>
               )}
+
+              {!categoriesLoading &&
+                categories.length === 0 &&
+                !categoryError && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    No active categories are available.
+                  </p>
+                )}
             </div>
 
             <div>
               <label htmlFor="product-brand" className={labelClass}>
                 Brand
               </label>
+
               <input
                 id="product-brand"
                 className={inputClass}
@@ -586,6 +714,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
               <label htmlFor="product-pack-size" className={labelClass}>
                 Pack size
               </label>
+
               <input
                 id="product-pack-size"
                 className={inputClass}
@@ -600,6 +729,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
               <label htmlFor="product-description" className={labelClass}>
                 Product description
               </label>
+
               <textarea
                 id="product-description"
                 className={`${inputClass} min-h-32 resize-y`}
@@ -615,39 +745,49 @@ export default function ProductForm({ productId }: ProductFormProps) {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="mb-6">
             <h2 className="text-lg font-bold text-slate-900">Product image</h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Add a clear product photograph to help customers identify the item.
             </p>
           </div>
 
-          {/* <div className="flex flex-col gap-5 sm:flex-row sm:items-start"> */}
           <div
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsImageDragging(true);
-              }}
-              onDragLeave={() => setIsImageDragging(false)}
-              onDrop={handleImageDrop}
-              className={`flex flex-col gap-5 rounded-xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-start ${
-                isImageDragging
-                  ? "border-emerald-500 bg-emerald-50"
-                  : "border-slate-200 bg-slate-50/50"
-              }`}
-            >
-                        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
-                          {imagePreview || currentImage ? (
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsImageDragging(true);
+            }}
+            onDragLeave={() => setIsImageDragging(false)}
+            onDrop={handleImageDrop}
+            className={`flex flex-col gap-5 rounded-xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-start ${
+              isImageDragging
+                ? "border-emerald-500 bg-emerald-50"
+                : "border-slate-200 bg-slate-50/50"
+            }`}
+          >
+            <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
+              {imagePreview || currentImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={imagePreview || currentImage || ""}
-                  alt={imagePreview ? "Selected product preview" : "Current product image"}
+                  alt={
+                    imagePreview
+                      ? "Selected product preview"
+                      : "Current product image"
+                  }
                   className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="px-4 text-center">
-                  <span className="text-3xl text-slate-300" aria-hidden="true">
+                  <span
+                    className="text-3xl text-slate-300"
+                    aria-hidden="true"
+                  >
                     +
                   </span>
-                  <p className="mt-2 text-xs text-slate-500">Image preview</p>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Image preview
+                  </p>
                 </div>
               )}
             </div>
@@ -658,15 +798,17 @@ export default function ProductForm({ productId }: ProductFormProps) {
               </label>
 
               <input
+                ref={imageInputRef}
                 id="product-image"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageSelection}
                 className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
               />
+
               <p className="mt-2 text-sm font-medium text-emerald-700">
-              Drag and drop an image here, or use the file picker above.
-            </p>
+                Drag and drop an image here, or use the file picker above.
+              </p>
 
               <p className="mt-2 text-xs text-slate-400">
                 JPEG, PNG or WebP. Maximum file size: 10 MB.
@@ -674,7 +816,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
               {selectedImage && (
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <p className="text-sm font-medium text-slate-700">{selectedImage.name}</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    {selectedImage.name}
+                  </p>
 
                   <button
                     type="button"
@@ -682,11 +826,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
                       updateSelectedImage(null);
                       setImageError("");
 
-                      const input = document.getElementById(
-                        "product-image",
-                      ) as HTMLInputElement | null;
-
-                      if (input) input.value = "";
+                      if (imageInputRef.current) {
+                        imageInputRef.current.value = "";
+                      }
                     }}
                     className="text-sm font-semibold text-red-600 transition hover:text-red-700"
                   >
@@ -706,7 +848,10 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-900">Pricing and inventory</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Pricing and inventory
+            </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Set the selling price and control product availability.
             </p>
@@ -717,10 +862,12 @@ export default function ProductForm({ productId }: ProductFormProps) {
               <label htmlFor="product-price" className={labelClass}>
                 Selling price (KES) <span className="text-red-500">*</span>
               </label>
+
               <div className="flex overflow-hidden rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
                 <span className="flex items-center border-r border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-500">
                   KES
                 </span>
+
                 <input
                   id="product-price"
                   className="w-full min-w-0 px-4 py-3 text-sm text-slate-900 outline-none"
@@ -737,11 +884,15 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
             <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
               <div>
-                <p className="text-sm font-semibold text-slate-800">Track inventory</p>
+                <p className="text-sm font-semibold text-slate-800">
+                  Track inventory
+                </p>
+
                 <p className="mt-1 text-xs text-slate-500">
                   Manage availability using stock quantity.
                 </p>
               </div>
+
               <button
                 type="button"
                 role="switch"
@@ -764,6 +915,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 <label htmlFor="stock-quantity" className={labelClass}>
                   Stock quantity
                 </label>
+
                 <input
                   id="stock-quantity"
                   className={inputClass}
@@ -774,6 +926,7 @@ export default function ProductForm({ productId }: ProductFormProps) {
                   onChange={(event) => setStockQuantity(event.target.value)}
                   required
                 />
+
                 <p className="mt-1.5 text-xs text-slate-400">
                   Availability is automatically determined by this quantity.
                 </p>
@@ -781,14 +934,22 @@ export default function ProductForm({ productId }: ProductFormProps) {
             ) : (
               <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Available for enquiry</p>
-                  <p className="mt-1 text-xs text-slate-500">Set availability manually.</p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Available for enquiry
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Set availability manually.
+                  </p>
                 </div>
+
                 <button
                   type="button"
                   role="switch"
                   aria-checked={manualAvailability}
-                  onClick={() => setManualAvailability((value) => !value)}
+                  onClick={() =>
+                    setManualAvailability((value) => !value)
+                  }
                   className={`relative h-6 w-11 shrink-0 rounded-full transition ${
                     manualAvailability ? "bg-emerald-600" : "bg-slate-300"
                   }`}
@@ -806,7 +967,10 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-900">Storefront settings</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Storefront settings
+            </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Control how customers see and interact with this product.
             </p>
@@ -816,19 +980,22 @@ export default function ProductForm({ productId }: ProductFormProps) {
             {[
               {
                 label: "Published on storefront",
-                description: "Customers can discover this product in the catalogue.",
+                description:
+                  "Customers can discover this product in the catalogue.",
                 checked: active,
                 change: setActive,
               },
               {
                 label: "Featured product",
-                description: "Mark this product for featured product sections.",
+                description:
+                  "Mark this product for featured product sections.",
                 checked: featured,
                 change: setFeatured,
               },
               {
                 label: "Requires professional advice",
-                description: "Indicate that customers should consult before use.",
+                description:
+                  "Indicate that customers should consult before use.",
                 checked: requiresAdvice,
                 change: setRequiresAdvice,
               },
@@ -840,14 +1007,20 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 <input
                   type="checkbox"
                   checked={setting.checked}
-                  onChange={(event) => setting.change(event.target.checked)}
+                  onChange={(event) =>
+                    setting.change(event.target.checked)
+                  }
                   className="mt-1 h-4 w-4 accent-emerald-600"
                 />
+
                 <span>
                   <span className="block text-sm font-semibold text-slate-800">
                     {setting.label}
                   </span>
-                  <span className="mt-1 block text-xs text-slate-500">{setting.description}</span>
+
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {setting.description}
+                  </span>
                 </span>
               </label>
             ))}
@@ -866,20 +1039,26 @@ export default function ProductForm({ productId }: ProductFormProps) {
             type="submit"
             disabled={
               submitting ||
+              imageUploading ||
               productLoading ||
               categoriesLoading ||
               categories.length === 0 ||
-              Boolean(success)
+              (Boolean(success) &&
+                (Boolean(productId) || !isReadyForNextProduct))
             }
             className="rounded-xl bg-emerald-700 px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting
+            {submitting || imageUploading
               ? productId
                 ? "Saving changes..."
-                : "Creating product..."
+                : imageUploading
+                  ? "Uploading image..."
+                  : "Creating product..."
               : productId
                 ? "Save changes"
-                : "Create product"}
+                : isReadyForNextProduct
+                  ? "Create next product"
+                  : "Create product"}
           </button>
         </div>
       </form>
