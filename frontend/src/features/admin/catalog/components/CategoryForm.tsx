@@ -1,9 +1,15 @@
-// Directory: frontend/src/features/admin/catalog/components/CategoryForm.tsx
-
+// frontend/src/features/admin/catalog/components/CategoryForm.tsx
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -43,7 +49,31 @@ function getErrorMessage(payload: unknown): string {
     return payload.error;
   }
 
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "detail" in payload &&
+    typeof payload.detail === "string"
+  ) {
+    return payload.detail;
+  }
+
   return "The request could not be completed. Please try again.";
+}
+
+function getRequestErrorMessage(
+  requestError: unknown,
+  fallback: string,
+): string {
+  if (requestError instanceof TypeError) {
+    return "Unable to reach the server. Check your internet connection, refresh the page and try again. If the problem continues, contact the administrator.";
+  }
+
+  if (requestError instanceof Error) {
+    return requestError.message;
+  }
+
+  return fallback;
 }
 
 export default function CategoryForm({ categoryId }: CategoryFormProps) {
@@ -59,6 +89,8 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isImageDragging, setIsImageDragging] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,7 +116,9 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
           cache: "no-store",
         });
 
-        const categoriesPayload: unknown = await categoriesResponse.json().catch(() => null);
+        const categoriesPayload: unknown = await categoriesResponse
+          .json()
+          .catch(() => null);
 
         if (!categoriesResponse.ok || !Array.isArray(categoriesPayload)) {
           throw new Error(getErrorMessage(categoriesPayload));
@@ -96,11 +130,16 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
         let loadedImage: string | null = null;
 
         if (categoryId !== undefined) {
-          const categoryResponse = await fetch(`/api/admin/catalog/categories/${categoryId}`, {
-            cache: "no-store",
-          });
+          const categoryResponse = await fetch(
+            `/api/admin/catalog/categories/${categoryId}`,
+            {
+              cache: "no-store",
+            },
+          );
 
-          const categoryPayload: unknown = await categoryResponse.json().catch(() => null);
+          const categoryPayload: unknown = await categoryResponse
+            .json()
+            .catch(() => null);
 
           if (!categoryResponse.ok) {
             throw new Error(getErrorMessage(categoryPayload));
@@ -111,7 +150,8 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
 
           loadedValues = {
             name: category.name,
-            parent: category.parent === null ? "" : String(category.parent),
+            parent:
+              category.parent === null ? "" : String(category.parent),
             description: category.description,
             sort_order: String(category.sort_order),
             is_active: category.is_active,
@@ -126,7 +166,10 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
       } catch (loadError) {
         if (isMounted) {
           setError(
-            loadError instanceof Error ? loadError.message : "Unable to load category details.",
+            getRequestErrorMessage(
+              loadError,
+              "Unable to load category details. Please refresh the page and try again.",
+            ),
           );
         }
       } finally {
@@ -143,26 +186,39 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
     };
   }, [categoryId]);
 
-  function updateField<K extends keyof CategoryValues>(field: K, value: CategoryValues[K]) {
-    setValues((current) => ({ ...current, [field]: value }));
+  function updateField<K extends keyof CategoryValues>(
+    field: K,
+    value: CategoryValues[K],
+  ) {
+    setValues((previousValues) => ({
+      ...previousValues,
+      [field]: value,
+    }));
   }
 
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  function processCategoryImage(
+    file?: File,
+    input?: HTMLInputElement | null,
+  ) {
+    setImageError(null);
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setError("Only JPEG, PNG, and WebP images are supported.");
-      event.target.value = "";
+      if (input) input.value = "";
+
+      setImageError(
+        "This file format is not supported. Choose a JPEG, PNG or WebP image.",
+      );
       return;
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
-      setError("The category image must not exceed 10 MB.");
-      event.target.value = "";
+      if (input) input.value = "";
+
+      setImageError(
+        "This image is larger than 10 MB. Choose a smaller image.",
+      );
       return;
     }
 
@@ -171,8 +227,55 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
     setImagePreview(URL.createObjectURL(file));
   }
 
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    processCategoryImage(event.target.files?.[0], event.target);
+  }
+
+  function handleCategoryImageDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsImageDragging(false);
+
+    processCategoryImage(event.dataTransfer.files?.[0]);
+  }
+
+  function handleCategoryImageDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+
+    setIsImageDragging(true);
+  }
+
+  function handleCategoryImageDragLeave(
+    event: DragEvent<HTMLDivElement>,
+  ) {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+
+    setIsImageDragging(false);
+  }
+
+  function removeSelectedImage() {
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageError(null);
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSaving) return;
+
     setError(null);
     setSuccessCategory(null);
 
@@ -215,7 +318,9 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
         },
       );
 
-      const responsePayload: unknown = await response.json().catch(() => null);
+      const responsePayload: unknown = await response
+        .json()
+        .catch(() => null);
 
       if (!response.ok) {
         throw new Error(getErrorMessage(responsePayload));
@@ -229,6 +334,7 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
         setSelectedImage(null);
         setCurrentImage(null);
         setImagePreview(null);
+        setImageError(null);
 
         if (imageInputRef.current) {
           imageInputRef.current.value = "";
@@ -239,9 +345,10 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
       }
     } catch (saveError) {
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Unable to save the category. Please try again.",
+        getRequestErrorMessage(
+          saveError,
+          "Unable to save the category. Please refresh the page and try again. If the problem continues, contact the administrator.",
+        ),
       );
     } finally {
       setIsSaving(false);
@@ -263,10 +370,14 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <p className="text-sm font-medium text-slate-500">Catalogue management</p>
+        <p className="text-sm font-medium text-slate-500">
+          Catalogue management
+        </p>
+
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
           {categoryId === undefined ? "Create category" : "Edit category"}
         </h1>
+
         <p className="mt-1 text-sm text-slate-500">
           Define how products are organised in your store.
         </p>
@@ -284,11 +395,13 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
             </div>
 
             <div>
-              <h2 className="font-semibold text-emerald-900">Category created successfully</h2>
+              <h2 className="font-semibold text-emerald-900">
+                Category created successfully
+              </h2>
 
               <p className="mt-1 text-sm text-emerald-800">
-                <span className="font-semibold">{successCategory}</span> has been added to your
-                catalogue.
+                <span className="font-semibold">{successCategory}</span> has
+                been added to your catalogue.
               </p>
             </div>
           </div>
@@ -319,9 +432,13 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
         )}
 
         <div className="space-y-2">
-          <label htmlFor="category-name" className="text-sm font-semibold text-slate-800">
+          <label
+            htmlFor="category-name"
+            className="text-sm font-semibold text-slate-800"
+          >
             Category name <span className="text-red-600">*</span>
           </label>
+
           <input
             id="category-name"
             type="text"
@@ -336,9 +453,13 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="category-parent" className="text-sm font-semibold text-slate-800">
+          <label
+            htmlFor="category-parent"
+            className="text-sm font-semibold text-slate-800"
+          >
             Parent category
           </label>
+
           <select
             id="category-parent"
             value={values.parent}
@@ -346,38 +467,59 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
             className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           >
             <option value="">No parent — top-level category</option>
+
             {parentCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
             ))}
           </select>
+
           <p className="text-xs text-slate-500">
-            Select a parent to create a subcategory. Only top-level categories can be parents.
+            Select a parent to create a subcategory. Only top-level categories
+            can be parents.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="category-description" className="text-sm font-semibold text-slate-800">
+          <label
+            htmlFor="category-description"
+            className="text-sm font-semibold text-slate-800"
+          >
             Description
           </label>
+
           <textarea
             id="category-description"
             rows={4}
             maxLength={5000}
             value={values.description}
-            onChange={(event) => updateField("description", event.target.value)}
+            onChange={(event) =>
+              updateField("description", event.target.value)
+            }
             placeholder="Describe the products that belong in this category..."
             className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           />
         </div>
 
         <div className="space-y-3">
-          <label htmlFor="category-image" className="text-sm font-semibold text-slate-800">
+          <label
+            htmlFor="category-image"
+            className="text-sm font-semibold text-slate-800"
+          >
             Category image
           </label>
 
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
+          <div
+            onDragOver={handleCategoryImageDragOver}
+            onDragLeave={handleCategoryImageDragLeave}
+            onDrop={handleCategoryImageDrop}
+            className={`rounded-xl border-2 border-dashed p-5 transition-colors ${
+              isImageDragging
+                ? "border-emerald-500 bg-emerald-50"
+                : "border-slate-300 bg-slate-50 hover:border-emerald-400"
+            }`}
+          >
             {imagePreview || currentImage ? (
               <div className="space-y-3">
                 <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl bg-white">
@@ -392,8 +534,16 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
                 </div>
 
                 <p className="text-xs text-slate-500">
-                  {selectedImage ? "New image selected." : "Current category image."}
+                  {selectedImage
+                    ? "New image selected. Save the category to apply it."
+                    : "Current category image."}
                 </p>
+
+                {selectedImage && (
+                  <p className="break-all text-xs font-medium text-slate-600">
+                    Selected file: {selectedImage.name}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -401,10 +551,14 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
                   <span className="text-xl">↑</span>
                 </div>
 
-                <p className="text-sm font-medium text-slate-700">No category image selected</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {isImageDragging
+                    ? "Drop your image here"
+                    : "Drag and drop a category image"}
+                </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Upload a JPEG, PNG or WebP image (maximum 10 MB).
+                  JPEG, PNG or WebP. Maximum file size: 10 MB.
                 </p>
               </div>
             )}
@@ -414,7 +568,9 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
                 htmlFor="category-image"
                 className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
               >
-                {selectedImage || currentImage ? "Choose another image" : "Choose image"}
+                {selectedImage || currentImage
+                  ? "Choose another image"
+                  : "Browse images"}
               </label>
 
               <input
@@ -426,17 +582,23 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
                 className="sr-only"
               />
 
+              <p className="w-full text-xs text-slate-500">
+                You can also drag an image from your computer into this area.
+              </p>
+
+              {imageError && (
+                <p
+                  role="alert"
+                  className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700"
+                >
+                  {imageError}
+                </p>
+              )}
+
               {selectedImage && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedImage(null);
-                    setImagePreview(null);
-
-                    if (imageInputRef.current) {
-                      imageInputRef.current.value = "";
-                    }
-                  }}
+                  onClick={removeSelectedImage}
                   className="text-sm font-medium text-red-600 transition hover:text-red-700"
                 >
                   Remove selection
@@ -446,15 +608,20 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
           </div>
 
           <p className="text-xs text-slate-500">
-            Selecting a new image replaces the existing category image when you save.
+            Selecting a new image replaces the existing category image when
+            you save. Leaving the image unchanged preserves the current image.
           </p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="category-sort-order" className="text-sm font-semibold text-slate-800">
+            <label
+              htmlFor="category-sort-order"
+              className="text-sm font-semibold text-slate-800"
+            >
               Display order
             </label>
+
             <input
               id="category-sort-order"
               type="number"
@@ -462,27 +629,40 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
               step={1}
               required
               value={values.sort_order}
-              onChange={(event) => updateField("sort_order", event.target.value)}
+              onChange={(event) =>
+                updateField("sort_order", event.target.value)
+              }
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             />
-            <p className="text-xs text-slate-500">Lower numbers appear earlier in the catalogue.</p>
+
+            <p className="text-xs text-slate-500">
+              Lower numbers appear earlier in the catalogue.
+            </p>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="category-status" className="text-sm font-semibold text-slate-800">
+            <label
+              htmlFor="category-status"
+              className="text-sm font-semibold text-slate-800"
+            >
               Visibility
             </label>
+
             <select
               id="category-status"
               value={values.is_active ? "active" : "inactive"}
-              onChange={(event) => updateField("is_active", event.target.value === "active")}
+              onChange={(event) =>
+                updateField("is_active", event.target.value === "active")
+              }
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
+
             <p className="text-xs text-slate-500">
-              Inactive categories can be managed here without appearing in the active catalogue.
+              Inactive categories can be managed here without appearing in
+              the active catalogue.
             </p>
           </div>
         </div>
@@ -500,7 +680,11 @@ export default function CategoryForm({ categoryId }: CategoryFormProps) {
             disabled={isSaving}
             className="inline-flex items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSaving ? "Saving..." : categoryId === undefined ? "Create category" : "Save changes"}
+            {isSaving
+              ? "Saving..."
+              : categoryId === undefined
+                ? "Create category"
+                : "Save changes"}
           </button>
         </div>
       </form>

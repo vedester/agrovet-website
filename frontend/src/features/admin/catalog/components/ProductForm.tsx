@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 // import { useEffect, useState, useMemo, type ChangeEvent, type FormEvent } from "react";
 
 type CategoryOption = {
@@ -59,6 +59,8 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
   const [imagePreview, setImagePreview] = useState("");
   const imagePreviewUrlRef = useRef<string | null>(null);
+  
+  const [isImageDragging, setIsImageDragging] = useState(false);
 
   const [trackStock, setTrackStock] = useState(true);
   const [stockQuantity, setStockQuantity] = useState("0");
@@ -218,39 +220,47 @@ export default function ProductForm({ productId }: ProductFormProps) {
     setImagePreview(previewUrl ?? "");
   }
 
-  function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
+  function processImageFile(file?: File, input?: HTMLInputElement | null) {
     setImageError("");
 
-    if (!file) {
-      updateSelectedImage(null);
-      return;
-    }
+    if (!file) return;
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     const maxSize = 10 * 1024 * 1024;
 
     if (!allowedTypes.includes(file.type)) {
       updateSelectedImage(null);
-      event.target.value = "";
-      setImageError("Choose a JPEG, PNG or WebP image.");
+      if (input) input.value = "";
+      setImageError(
+        "This file format is not supported. Choose a JPEG, PNG or WebP image.",
+      );
       return;
     }
 
     if (file.size > maxSize) {
       updateSelectedImage(null);
-      event.target.value = "";
-      setImageError("Image size must not exceed 10 MB.");
+      if (input) input.value = "";
+      setImageError("This image is larger than 10 MB. Choose a smaller image.");
       return;
     }
 
     updateSelectedImage(file);
   }
 
+  function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
+    processImageFile(event.target.files?.[0], event.target);
+  }
+
+  function handleImageDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsImageDragging(false);
+    processImageFile(event.dataTransfer.files?.[0]);
+  }
+
   async function uploadSelectedImage(productId: number, file: File) {
     setImageUploading(true);
     setImageUploadError("");
+    setImageUploaded(false);
 
     try {
       const formData = new FormData();
@@ -277,14 +287,16 @@ export default function ProductForm({ productId }: ProductFormProps) {
         throw new Error(
           typeof data === "object" && data !== null && "error" in data
             ? String(data.error)
-            : "The product was saved, but its image could not be uploaded.",
+            : "The product was saved, but its image could not be uploaded. Please try again.",
         );
       }
 
       setImageUploaded(true);
     } catch (err) {
       setImageUploadError(
-        err instanceof Error ? err.message : "Unable to upload the product image.",
+        err instanceof Error
+          ? err.message
+          : "The product was saved, but the image upload failed. Please try again.",
       );
     } finally {
       setImageUploading(false);
@@ -608,9 +620,22 @@ export default function ProductForm({ productId }: ProductFormProps) {
             </p>
           </div>
 
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
-              {imagePreview || currentImage ? (
+          {/* <div className="flex flex-col gap-5 sm:flex-row sm:items-start"> */}
+          <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsImageDragging(true);
+              }}
+              onDragLeave={() => setIsImageDragging(false)}
+              onDrop={handleImageDrop}
+              className={`flex flex-col gap-5 rounded-xl border-2 border-dashed p-4 transition-colors sm:flex-row sm:items-start ${
+                isImageDragging
+                  ? "border-emerald-500 bg-emerald-50"
+                  : "border-slate-200 bg-slate-50/50"
+              }`}
+            >
+                        <div className="flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
+                          {imagePreview || currentImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={imagePreview || currentImage || ""}
@@ -639,6 +664,9 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 onChange={handleImageSelection}
                 className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
               />
+              <p className="mt-2 text-sm font-medium text-emerald-700">
+              Drag and drop an image here, or use the file picker above.
+            </p>
 
               <p className="mt-2 text-xs text-slate-400">
                 JPEG, PNG or WebP. Maximum file size: 10 MB.
