@@ -1,4 +1,3 @@
-// Directory: frontend/src/features/admin/catalog/components/CategoryManagement.tsx
 
 "use client";
 
@@ -37,6 +36,10 @@ function getErrorMessage(payload: unknown): string {
   return "Unable to load categories. Please try again.";
 }
 
+function compareCategories(a: AdminCategory, b: AdminCategory): number {
+  return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+}
+
 export default function CategoryManagement() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [search, setSearch] = useState("");
@@ -44,8 +47,9 @@ export default function CategoryManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  // State for delete confirmation modal
-  const [categoryToDelete, setCategoryToDelete] = useState<AdminCategory | null>(null);
+
+  const [categoryToDelete, setCategoryToDelete] =
+    useState<AdminCategory | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
@@ -112,25 +116,29 @@ export default function CategoryManagement() {
     setDeleteSuccess(null);
 
     try {
-      const response = await fetch(`/api/admin/catalog/categories/${categoryToDelete.id}`, {
-        method: "DELETE",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/admin/catalog/categories/${categoryToDelete.id}`,
+        {
+          method: "DELETE",
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
-
         throw new Error(getErrorMessage(payload));
       }
 
-      setCategories((current) => current.filter((category) => category.id !== categoryToDelete.id));
+      setCategories((current) =>
+        current.filter((category) => category.id !== categoryToDelete.id),
+      );
 
       setDeleteSuccess(`${categoryToDelete.name} was deleted successfully.`);
       setCategoryToDelete(null);
-    } catch (error) {
+    } catch (deleteRequestError) {
       setDeleteError(
-        error instanceof Error
-          ? error.message
+        deleteRequestError instanceof Error
+          ? deleteRequestError.message
           : "Unable to delete this category. Please try again.",
       );
     } finally {
@@ -138,40 +146,97 @@ export default function CategoryManagement() {
     }
   }
 
-  const filteredCategories = useMemo(() => {
+  const categoryTree = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return categories.filter((category) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        category.name.toLowerCase().includes(normalizedSearch) ||
-        category.description.toLowerCase().includes(normalizedSearch);
+    const matchesSearch = (category: AdminCategory) =>
+      normalizedSearch.length === 0 ||
+      category.name.toLowerCase().includes(normalizedSearch) ||
+      category.description.toLowerCase().includes(normalizedSearch);
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && category.is_active) ||
-        (statusFilter === "inactive" && !category.is_active);
+    const matchesStatus = (category: AdminCategory) =>
+      statusFilter === "all" ||
+      (statusFilter === "active" && category.is_active) ||
+      (statusFilter === "inactive" && !category.is_active);
 
-      return matchesSearch && matchesStatus;
-    });
+    const sortedCategories = [...categories].sort(compareCategories);
+
+    const parents = sortedCategories.filter(
+      (category) => category.parent === null,
+    );
+
+    const childrenByParent = new Map<number, AdminCategory[]>();
+
+    for (const category of sortedCategories) {
+      if (category.parent === null) {
+        continue;
+      }
+
+      const existingChildren = childrenByParent.get(category.parent) ?? [];
+
+      existingChildren.push(category);
+      childrenByParent.set(category.parent, existingChildren);
+    }
+
+    const visibleTree: {
+      parent: AdminCategory;
+      children: AdminCategory[];
+    }[] = [];
+
+    for (const parent of parents) {
+      const children = childrenByParent.get(parent.id) ?? [];
+
+      const matchingChildren = children.filter(
+        (child) => matchesSearch(child) && matchesStatus(child),
+      );
+
+      const parentMatches = matchesSearch(parent) && matchesStatus(parent);
+
+      if (!parentMatches && matchingChildren.length === 0) {
+        continue;
+      }
+
+      visibleTree.push({
+        parent,
+        children: matchingChildren,
+      });
+    }
+
+    const visibleCount = visibleTree.reduce(
+      (total, group) => total + 1 + group.children.length,
+      0,
+    );
+
+    return {
+      groups: visibleTree,
+      visibleCount,
+    };
   }, [categories, search, statusFilter]);
 
-  const categoryMap = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
-    [categories],
-  );
+  const activeCount = categories.filter(
+    (category) => category.is_active,
+  ).length;
 
-  const activeCount = categories.filter((category) => category.is_active).length;
   const inactiveCount = categories.length - activeCount;
+
+  const topLevelCount = categories.filter(
+    (category) => category.parent === null,
+  ).length;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">Catalogue management</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Categories</h1>
+          <p className="text-sm font-medium text-slate-500">
+            Catalogue management
+          </p>
+
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+            Categories
+          </h1>
+
           <p className="mt-1 text-sm text-slate-500">
-            Organise products into categories and subcategories.
+            Organise products into parent categories and subcategories.
           </p>
         </div>
 
@@ -183,29 +248,45 @@ export default function CategoryManagement() {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Total categories</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{categories.length}</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {categories.length}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="text-sm text-slate-500">Parent categories</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {topLevelCount}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Active categories</p>
-          <p className="mt-2 text-2xl font-semibold text-emerald-700">{activeCount}</p>
+          <p className="mt-2 text-2xl font-semibold text-emerald-700">
+            {activeCount}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-sm text-slate-500">Inactive categories</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-700">{inactiveCount}</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-700">
+            {inactiveCount}
+          </p>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-950">All categories</h2>
+            <h2 className="font-semibold text-slate-950">
+              Category structure
+            </h2>
+
             <p className="mt-1 text-sm text-slate-500">
-              View category structure and product assignments.
+              Parent categories and their subcategories are grouped together.
             </p>
           </div>
 
@@ -221,7 +302,9 @@ export default function CategoryManagement() {
 
             <select
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as StatusFilter)
+              }
               aria-label="Filter categories by status"
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
             >
@@ -238,7 +321,9 @@ export default function CategoryManagement() {
             className="mx-5 mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4"
           >
             <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-emerald-800">{deleteSuccess}</p>
+              <p className="text-sm font-medium text-emerald-800">
+                {deleteSuccess}
+              </p>
 
               <button
                 type="button"
@@ -255,6 +340,7 @@ export default function CategoryManagement() {
         {error && (
           <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-4">
             <p className="text-sm text-red-700">{error}</p>
+
             <button
               type="button"
               onClick={() => setRefreshKey((current) => current + 1)}
@@ -266,53 +352,68 @@ export default function CategoryManagement() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
               <tr>
                 <th className="px-5 py-4 font-semibold">Category</th>
-                <th className="px-5 py-4 font-semibold">Parent category</th>
-                <th className="px-5 py-4 text-center font-semibold">Products</th>
-                <th className="px-5 py-4 text-center font-semibold">Subcategories</th>
+                <th className="px-5 py-4 text-center font-semibold">
+                  Products
+                </th>
+                <th className="px-5 py-4 text-center font-semibold">
+                  Subcategories
+                </th>
                 <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 text-right font-semibold">Actions</th>
+                <th className="px-5 py-4 text-right font-semibold">
+                  Actions
+                </th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={5}
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
                     Loading categories...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={5}
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
                     Categories could not be loaded.
                   </td>
                 </tr>
-              ) : filteredCategories.length === 0 ? (
+              ) : categoryTree.visibleCount === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center">
-                    <p className="font-medium text-slate-700">No categories found</p>
+                  <td colSpan={5} className="px-5 py-12 text-center">
+                    <p className="font-medium text-slate-700">
+                      No categories found
+                    </p>
+
                     <p className="mt-1 text-slate-500">
                       Try changing your search or status filter.
                     </p>
                   </td>
                 </tr>
               ) : (
-                filteredCategories.map((category) => {
-                  const parentCategory = category.parent ? categoryMap.get(category.parent) : null;
-
-                  return (
-                    <tr key={category.id} className="transition hover:bg-slate-50">
+                categoryTree.groups.map(({ parent, children }) => (
+                  <>
+                    <tr
+                      key={`parent-${parent.id}`}
+                      className="bg-white transition hover:bg-slate-50"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          {category.image ? (
+                          {parent.image ? (
                             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                               <Image
-                                src={category.image}
-                                alt={`${category.name} category`}
+                                src={parent.image}
+                                alt={`${parent.name} category`}
                                 fill
                                 unoptimized
                                 sizes="48px"
@@ -321,54 +422,53 @@ export default function CategoryManagement() {
                             </div>
                           ) : (
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-sm font-bold text-emerald-800">
-                              {getCategoryInitials(category.name)}
+                              {getCategoryInitials(parent.name)}
                             </div>
                           )}
 
                           <div className="min-w-0">
-                            <div className="font-semibold text-slate-900">{category.name}</div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-slate-900">
+                                {parent.name}
+                              </span>
+
+                              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-800 uppercase">
+                                Parent
+                              </span>
+                            </div>
+
                             <div className="mt-1 max-w-sm truncate text-xs text-slate-500">
-                              {category.description || "No description provided"}
+                              {parent.description ||
+                                "No description provided"}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-slate-600">
-                        {parentCategory ? (
-                          <span>
-                            {parentCategory.name}
-                            <span className="ml-2 text-xs text-slate-400">Subcategory</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">Top-level category</span>
-                        )}
+                      <td className="px-5 py-4 text-center font-medium text-slate-700 tabular-nums">
+                        {parent.product_count}
                       </td>
 
                       <td className="px-5 py-4 text-center font-medium text-slate-700 tabular-nums">
-                        {category.product_count}
-                      </td>
-
-                      <td className="px-5 py-4 text-center font-medium text-slate-700 tabular-nums">
-                        {category.children_count}
+                        {parent.children_count}
                       </td>
 
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            category.is_active
+                            parent.is_active
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          {category.is_active ? "Active" : "Inactive"}
+                          {parent.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
 
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-4">
                           <Link
-                            href={`/admin/categories/${category.id}/edit`}
+                            href={`/admin/categories/${parent.id}/edit`}
                             className="font-semibold text-emerald-700 transition hover:text-emerald-900"
                           >
                             Edit
@@ -378,7 +478,7 @@ export default function CategoryManagement() {
                             type="button"
                             onClick={() => {
                               setDeleteError(null);
-                              setCategoryToDelete(category);
+                              setCategoryToDelete(parent);
                             }}
                             className="font-semibold text-red-600 transition hover:text-red-800"
                           >
@@ -387,15 +487,101 @@ export default function CategoryManagement() {
                         </div>
                       </td>
                     </tr>
-                  );
-                })
+
+                    {children.map((child) => (
+                      <tr
+                        key={`child-${child.id}`}
+                        className="bg-slate-50/60 transition hover:bg-slate-100"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3 pl-5 sm:pl-9">
+                            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
+                              <span
+                                aria-hidden="true"
+                                className="absolute bottom-1/2 left-1/2 top-0 w-px bg-slate-300"
+                              />
+
+                              <span
+                                aria-hidden="true"
+                                className="absolute bottom-1/2 left-1/2 h-px w-4 bg-slate-300"
+                              />
+
+                              <div className="relative z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600">
+                                {getCategoryInitials(child.name)}
+                              </div>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-slate-800">
+                                  {child.name}
+                                </span>
+
+                                <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-600 uppercase">
+                                  Subcategory
+                                </span>
+                              </div>
+
+                              <div className="mt-1 max-w-sm truncate text-xs text-slate-500">
+                                {child.description ||
+                                  "No description provided"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-3 text-center font-medium text-slate-700 tabular-nums">
+                          {child.product_count}
+                        </td>
+
+                        <td className="px-5 py-3 text-center text-slate-400">
+                          —
+                        </td>
+
+                        <td className="px-5 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              child.is_active
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {child.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-4">
+                            <Link
+                              href={`/admin/categories/${child.id}/edit`}
+                              className="font-semibold text-emerald-700 transition hover:text-emerald-900"
+                            >
+                              Edit
+                            </Link>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setCategoryToDelete(child);
+                              }}
+                              className="font-semibold text-red-600 transition hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                ))
               )}
             </tbody>
           </table>
         </div>
 
         <div className="border-t border-slate-200 px-5 py-3 text-xs text-slate-500">
-          Showing {filteredCategories.length} of {categories.length} categories
+          Showing {categoryTree.visibleCount} of {categories.length} categories
         </div>
 
         {categoryToDelete && (
@@ -414,23 +600,31 @@ export default function CategoryManagement() {
               aria-labelledby="delete-category-title"
               className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
             >
-              <h2 id="delete-category-title" className="text-lg font-semibold text-slate-950">
+              <h2
+                id="delete-category-title"
+                className="text-lg font-semibold text-slate-950"
+              >
                 Delete category?
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 You are about to permanently delete{" "}
-                <strong className="text-slate-900">{categoryToDelete.name}</strong>. This action
-                cannot be undone.
+                <strong className="text-slate-900">
+                  {categoryToDelete.name}
+                </strong>
+                . This action cannot be undone.
               </p>
 
               <p className="mt-2 text-sm text-slate-500">
-                Categories containing products or subcategories cannot be deleted. You can
-                deactivate them instead.
+                Categories containing products or subcategories cannot be
+                deleted. You can deactivate them instead.
               </p>
 
               {deleteError && (
-                <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                <div
+                  role="alert"
+                  className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3"
+                >
                   <p className="text-sm text-red-700">{deleteError}</p>
                 </div>
               )}

@@ -15,7 +15,43 @@ type CategoryOption = {
   id: number;
   name: string;
   parent: number | null;
+   sort_order: number;
 };
+
+type CategoryGroup = {
+  parent: CategoryOption;
+  children: CategoryOption[];
+};
+
+function buildCategoryGroups(
+  categories: CategoryOption[],
+): CategoryGroup[] {
+  const sorted = [...categories].sort(
+    (a, b) =>
+      a.sort_order - b.sort_order ||
+      a.name.localeCompare(b.name),
+  );
+
+  const parents = sorted.filter((item) => item.parent === null);
+  const parentIds = new Set(parents.map((item) => item.id));
+
+  const groups: CategoryGroup[] = parents.map((parent) => ({
+    parent,
+    children: sorted.filter((item) => item.parent === parent.id),
+  }));
+
+  // Keep any unexpected orphaned categories visible rather than hiding them.
+  const orphanedCategories = sorted
+    .filter(
+      (item) => item.parent !== null && !parentIds.has(item.parent),
+    )
+    .map((item) => ({
+      parent: item,
+      children: [],
+    }));
+
+  return [...groups, ...orphanedCategories];
+}
 
 type ProductFormProps = {
   productId?: number;
@@ -671,15 +707,23 @@ export default function ProductForm({ productId }: ProductFormProps) {
                 required
               >
                 <option value="">
-                  {categoriesLoading ? "Loading categories..." : "Select category"}
-                </option>
+                {categoriesLoading ? "Loading categories..." : "Select category"}
+              </option>
 
-                {categories.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.parent ? "— " : ""}
-                    {item.name}
+              {buildCategoryGroups(categories).map(({ parent, children }) => (
+                <optgroup key={parent.id} label={parent.name}>
+                  <option value={parent.id}>
+                    All {parent.name}
                   </option>
-                ))}
+
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+
               </select>
 
               {categoryError && (
