@@ -94,7 +94,7 @@ class CustomerOrderCreateSerializer(serializers.Serializer):
         # Lock and retrieve only products currently visible in the storefront.
         products = list(
             public_products()
-            .select_for_update()
+            .select_for_update(of=("self",))
             .select_related("category", "category__parent")
             .filter(id__in=product_ids)
         )
