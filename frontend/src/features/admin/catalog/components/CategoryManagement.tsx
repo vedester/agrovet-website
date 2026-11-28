@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import type { AdminCategory } from "@/lib/api/admin-catalog";
 
@@ -402,7 +402,7 @@ export default function CategoryManagement() {
                 </tr>
               ) : (
                 categoryTree.groups.map(({ parent, children }) => (
-                  <>
+                  <Fragment key={`parent-${parent.id}`}>
                     <tr
                       key={`parent-${parent.id}`}
                       className="bg-white transition hover:bg-slate-50"
@@ -573,7 +573,7 @@ export default function CategoryManagement() {
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))
               )}
             </tbody>

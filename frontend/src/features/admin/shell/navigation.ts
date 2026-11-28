@@ -3,8 +3,10 @@
 
 export type AdminNavigationIcon =
   | "dashboard"
+  | "orders"
   | "products"
   | "categories"
+  | "inventory"
   | "enquiries"
   | "settings";
 
@@ -33,6 +35,16 @@ export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
     ],
   },
   {
+    label: "Sales",
+    items: [
+      {
+        label: "Orders",
+        href: "/admin/orders",
+        icon: "orders",
+      },
+    ],
+  },
+  {
     label: "Catalogue",
     items: [
       {
@@ -44,6 +56,11 @@ export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
         label: "Categories",
         href: "/admin/categories",
         icon: "categories",
+      },
+      {
+        label: "Inventory",
+        href: "/admin/inventory",
+        icon: "inventory",
       },
     ],
   },

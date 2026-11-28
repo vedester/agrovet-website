@@ -128,8 +128,6 @@ export type CreateAdminProductInput = {
   pack_size: string;
   description: string;
   price: string;
-  stock_quantity: number | null;
-  is_in_stock: boolean;
   requires_advice: boolean;
   is_featured: boolean;
   is_active: boolean;

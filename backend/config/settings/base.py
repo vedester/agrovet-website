@@ -34,6 +34,8 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.accounts",
     "apps.catalog",
+    "apps.inventory",
+    "apps.orders",
     "apps.product_imports",
     "apps.website",
 ]
@@ -114,6 +116,8 @@ REST_FRAMEWORK = {
         "anon": "120/min",
         "user": "300/min",
         "login": "5/min",
+        "customer_login": "5/min",
+        "customer_register": "5/hour",
         "import": "20/min",
         "photo_import": "60/min",
         "token_refresh": "30/min",

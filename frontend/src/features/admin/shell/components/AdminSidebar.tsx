@@ -40,6 +40,15 @@ function NavigationIcon({ name }: { name: AdminNavigationIcon }) {
         </svg>
       );
 
+    case "orders":
+      return (
+        <svg {...common}>
+          <path d="M3 7h18l-1.5 13h-15L3 7Z" />
+          <path d="M8 9V6a4 4 0 0 1 8 0v3" />
+          <path d="M9 13h6" />
+        </svg>
+      );
+
     case "products":
       return (
         <svg {...common}>
@@ -56,6 +65,15 @@ function NavigationIcon({ name }: { name: AdminNavigationIcon }) {
           <rect x="13" y="3" width="8" height="8" rx="1.5" />
           <rect x="3" y="13" width="8" height="8" rx="1.5" />
           <rect x="13" y="13" width="8" height="8" rx="1.5" />
+        </svg>
+      );
+
+    case "inventory":
+      return (
+        <svg {...common}>
+          <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z" />
+          <path d="M3.5 7.8 12 12l8.5-4.2M12 12v9" />
+          <path d="m8 5 9 4.5" />
         </svg>
       );
 

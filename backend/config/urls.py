@@ -1,3 +1,4 @@
+# backend/config/urls.py
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -22,11 +23,15 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", health, name="health"),
     path("api/v1/auth/", include("apps.accounts.urls")),
+    path("api/v1/orders/", include("apps.orders.customer_urls")),
     path("api/v1/catalog/", include("apps.catalog.urls")),
     path("api/v1/admin/catalog/", include("apps.catalog.staff_urls")),
+    path("api/v1/admin/inventory/", include("apps.inventory.urls")),
+    path("api/v1/admin/orders/", include("apps.orders.urls")),
     path("api/v1/admin/imports/", include("apps.product_imports.urls")),
     path("api/v1/site/", include("apps.website.urls")),
     path("api/v1/admin/site/", include("apps.website.staff_urls")),
+    
 ]
 
 if settings.DEBUG:

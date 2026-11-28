@@ -65,31 +65,42 @@ def test_negative_price_is_rejected(staff_client, category):
     assert "price" in response.data
 
 
-def test_stock_quantity_drives_availability_and_conflicts_are_rejected(
-    staff_client, category
-):
-    created = staff_client.post(
-        PRODUCTS, new_product_payload(category, stock_quantity=0), format="json"
-    )
+def test_product_api_cannot_modify_stock(staff_client, category):
+    # Stock supplied during product creation must be rejected.
+    payload = new_product_payload(category, stock_quantity=0)
+
+    response = staff_client.post(PRODUCTS, payload, format="json")
+
+    assert response.status_code == 400
+    assert "stock_quantity" in response.data
+
+    # Product creation without stock fields must succeed.
+    payload = new_product_payload(category)
+    payload.pop("stock_quantity", None)
+    payload.pop("is_in_stock", None)
+
+    created = staff_client.post(PRODUCTS, payload, format="json")
+
     assert created.status_code == 201, created.data
+    assert created.data["stock_quantity"] == 0
     assert created.data["is_in_stock"] is False
-    url = f"{PRODUCTS}{created.data['id']}/"
 
-    restocked = staff_client.patch(url, {"stock_quantity": 5}, format="json")
-    assert restocked.data["is_in_stock"] is True
+    product_id = created.data["id"]
 
-    conflict = staff_client.patch(
-        url, {"stock_quantity": 5, "is_in_stock": False}, format="json"
+    # Stock updates through the Product API must also be rejected.
+    response = staff_client.patch(
+        f"{PRODUCTS}{product_id}/",
+        {"stock_quantity": 10},
+        format="json",
     )
-    assert conflict.status_code == 400
-    assert "is_in_stock" in conflict.data
 
-    manual = staff_client.patch(
-        url, {"stock_quantity": None, "is_in_stock": False}, format="json"
-    )
-    assert manual.status_code == 200
-    assert manual.data["stock_quantity"] is None
-    assert manual.data["is_in_stock"] is False
+    assert response.status_code == 400
+    assert "stock_quantity" in response.data
+
+    product = Product.objects.get(pk=product_id)
+
+    assert product.stock_quantity == 0
+    assert product.is_in_stock is False
 
 
 def test_staff_list_includes_inactive_products_and_filters(staff_client, category):

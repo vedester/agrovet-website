@@ -22,22 +22,11 @@ const createProductSchema = z
       .string()
       .trim()
       .regex(/^\d{1,8}(\.\d{1,2})?$/),
-    stock_quantity: z.number().int().nonnegative().nullable(),
-    is_in_stock: z.boolean(),
     requires_advice: z.boolean(),
     is_featured: z.boolean(),
     is_active: z.boolean(),
     category: z.number().int().positive(),
   })
-  .superRefine((product, context) => {
-    if (product.stock_quantity !== null && product.is_in_stock !== product.stock_quantity > 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["is_in_stock"],
-        message: "Availability must match the stock quantity.",
-      });
-    }
-  });
 
 function errorResponse(message: string, status: number, details?: unknown) {
   return NextResponse.json(

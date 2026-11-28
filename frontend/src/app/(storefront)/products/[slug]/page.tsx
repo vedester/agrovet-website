@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import AddToCartButton from "@/components/cart/AddToCartButton";
 import ProductGallery from "@/components/catalog/ProductGallery";
 import ProductGrid from "@/components/catalog/ProductGrid";
 import StockBadge from "@/components/catalog/StockBadge";
@@ -106,9 +107,15 @@ async function ProductContent({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Primary product enquiry action */}
-            {enquiryUrl ? (
-              <div className="mt-7">
+            {/* Add to cart and retain the WhatsApp enquiry option */}
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <AddToCartButton
+                product={product}
+                className="min-h-14 w-full px-7 py-4 sm:w-auto"
+              />
+
+              {enquiryUrl ? (
+              <div className="mt-0">
                 <a
                   href={enquiryUrl}
                   target="_blank"
@@ -144,6 +151,7 @@ async function ProductContent({ params }: ProductPageProps) {
                 </p>
               </div>
             )}
+            </div>
 
             {/* Transparent order expectations */}
             <p className="mt-4 text-xs leading-5 text-ink-soft">

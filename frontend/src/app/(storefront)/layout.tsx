@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import SiteFooter from "@/components/layout/SiteFooter";
 import SiteHeader from "@/components/layout/SiteHeader";
+import { CartProvider } from "@/features/cart/cart-context";
 
 export default function StorefrontLayout({
   children,
@@ -13,8 +14,9 @@ export default function StorefrontLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <Suspense
+    <CartProvider>
+      <div className="flex min-h-dvh flex-col">
+        <Suspense
         fallback={
           <header
             aria-label="Loading site header"
@@ -36,7 +38,8 @@ export default function StorefrontLayout({
         }
       >
         <SiteFooter />
-      </Suspense>
-    </div>
+        </Suspense>
+      </div>
+    </CartProvider>
   );
 }

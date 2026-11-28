@@ -1,3 +1,4 @@
+# backend/apps/catalog/staff_serializers.py
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -86,7 +87,7 @@ class StaffProductSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("slug", "created_at", "updated_at")
+        read_only_fields = ("slug", "stock_quantity", "is_in_stock", "created_at", "updated_at")
 
     def validate_sku(self, value):
         value = value.strip().upper()
@@ -99,16 +100,26 @@ class StaffProductSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        current = self.instance.stock_quantity if self.instance else None
-        quantity = attrs.get("stock_quantity", current)
-        wanted = attrs.get("is_in_stock")
-        if quantity is not None and wanted is not None and wanted != (quantity > 0):
-            raise ValidationError(
-                {
-                    "is_in_stock": (
-                        "Availability is derived from stock_quantity. Change the quantity, "
-                        "or set stock_quantity to null to control availability manually."
-                    )
-                }
-            )
-        return attrs
+
+        protected_fields = ("stock_quantity", "is_in_stock")
+
+        errors = {
+            field: "Stock is managed through the Inventory section."
+            for field in protected_fields
+            if field in self.initial_data
+        }
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs    
+
+
+    def create(self, validated_data):
+    # Every newly created product starts with tracked stock at zero.
+    # The seller records the opening quantity through Inventory.
+        return Product.objects.create(
+            stock_quantity=0,
+            is_in_stock=False,
+            **validated_data,
+        )

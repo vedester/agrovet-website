@@ -1,4 +1,4 @@
-"""Local development settings."""
+"""Local development settings. in development.py"""
 
 import os
 import urllib.parse
@@ -18,28 +18,58 @@ CORS_ALLOWED_ORIGINS = [
 # Keep HTTPS redirects off on local HTTP runserver
 SECURE_SSL_REDIRECT = False
 
-# --- Database (Supabase Transaction Pooler) ---
-raw_db_url = os.environ.get("DATABASE_URL")
-if raw_db_url:
-  parsed = urllib.parse.urlparse(raw_db_url)
-  DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": parsed.path.lstrip("/") or "postgres",
-        "USER": urllib.parse.unquote(parsed.username or ""),
-        "PASSWORD": urllib.parse.unquote(parsed.password or ""),
-        "HOST": parsed.hostname,
-        "PORT": str(parsed.port or 6543),
-        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
-        "DISABLE_SERVER_SIDE_CURSORS": True,
-        "OPTIONS": {
-            "sslmode": os.environ.get("DB_SSLMODE", "require"),
-        },
-    }
-}
+# # --- Database (Supabase Transaction Pooler) ---
+# raw_db_url = os.environ.get("DATABASE_URL")
+# if raw_db_url:
+#   parsed = urllib.parse.urlparse(raw_db_url)
+#   DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": parsed.path.lstrip("/") or "postgres",
+#         "USER": urllib.parse.unquote(parsed.username or ""),
+#         "PASSWORD": urllib.parse.unquote(parsed.password or ""),
+#         "HOST": parsed.hostname,
+#         "PORT": str(parsed.port or 6543),
+#         "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+#         "DISABLE_SERVER_SIDE_CURSORS": True,
+#         "OPTIONS": {
+#             "sslmode": os.environ.get("DB_SSLMODE", "require"),
+#         },
+#     }
+# }
 
-# --- Supabase Storage ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_STORAGE_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "media")
-SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
-SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
+# --- Database (Local development by default) ---
+# raw_db_url = os.environ.get("DATABASE_URL")
+
+# if raw_db_url:
+#     parsed = urllib.parse.urlparse(raw_db_url)
+
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.postgresql",
+#             "NAME": parsed.path.lstrip("/") or "postgres",
+#             "USER": urllib.parse.unquote(parsed.username or ""),
+#             "PASSWORD": urllib.parse.unquote(parsed.password or ""),
+#             "HOST": parsed.hostname,
+#             "PORT": str(parsed.port or 6543),
+#             "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "0")),
+#             "DISABLE_SERVER_SIDE_CURSORS": True,
+#             "OPTIONS": {
+#                 "sslmode": os.environ.get("DB_SSLMODE", "require"),
+#             },
+#         }
+#     }
+# else:
+
+DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+# # --- Supabase Storage ---
+# SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+# SUPABASE_STORAGE_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "media")
+# SUPABASE_PUBLISHABLE_KEY = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
+# SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")

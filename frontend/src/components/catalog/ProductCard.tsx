@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import AddToCartButton from "@/components/cart/AddToCartButton";
 import type { ProductSummary } from "@/features/catalog/types";
 
 import PhotoPlaceholder from "./PhotoPlaceholder";
@@ -59,6 +60,10 @@ export default function ProductCard({ product }: { product: ProductSummary }) {
               Ask our team for advice before use.
             </p>
           )}
+
+          <div className="relative z-10 mt-4">
+            <AddToCartButton product={product} className="w-full" />
+          </div>
         </div>
       </div>
     </article>

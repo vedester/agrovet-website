@@ -66,8 +66,6 @@ type EditableProduct = {
   category: number;
   price: string;
   description: string;
-  stock_quantity: number | null;
-  is_in_stock: boolean;
   requires_advice: boolean;
   is_featured: boolean;
   is_active: boolean;
@@ -101,10 +99,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
   const imagePreviewUrlRef = useRef<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isImageDragging, setIsImageDragging] = useState(false);
-
-  const [trackStock, setTrackStock] = useState(true);
-  const [stockQuantity, setStockQuantity] = useState("0");
-  const [manualAvailability, setManualAvailability] = useState(true);
 
   const [requiresAdvice, setRequiresAdvice] = useState(false);
   const [featured, setFeatured] = useState(false);
@@ -213,12 +207,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
         setPrice(product.price);
         setDescription(product.description);
 
-        setTrackStock(product.stock_quantity !== null);
-        setStockQuantity(
-          product.stock_quantity === null ? "0" : String(product.stock_quantity),
-        );
-        setManualAvailability(product.is_in_stock);
-
         setRequiresAdvice(product.requires_advice);
         setFeatured(product.is_featured);
         setActive(product.is_active);
@@ -273,11 +261,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
     setCategory("");
     setPrice("");
     setDescription("");
-
-    // Restore inventory defaults.
-    setTrackStock(true);
-    setStockQuantity("0");
-    setManualAvailability(true);
 
     // Restore storefront defaults.
     setRequiresAdvice(false);
@@ -417,13 +400,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
       return;
     }
 
-    const quantity = Number(stockQuantity);
-
-    if (trackStock && (!Number.isInteger(quantity) || quantity < 0)) {
-      setError("Enter a valid, non-negative stock quantity.");
-      return;
-    }
-
     if (!/^\d{1,8}(\.\d{1,2})?$/.test(price.trim())) {
       setError("Enter a valid price with no more than two decimal places.");
       return;
@@ -436,8 +412,6 @@ export default function ProductForm({ productId }: ProductFormProps) {
       pack_size: packSize.trim(),
       description: description.trim(),
       price: price.trim(),
-      stock_quantity: trackStock ? quantity : null,
-      is_in_stock: trackStock ? quantity > 0 : manualAvailability,
       requires_advice: requiresAdvice,
       is_featured: featured,
       is_active: active,
@@ -892,120 +866,32 @@ export default function ProductForm({ productId }: ProductFormProps) {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-900">
-              Pricing and inventory
-            </h2>
-
+            <h2 className="text-lg font-bold text-slate-900">Pricing</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Set the selling price and control product availability.
+              Set the product&apos;s selling price.
             </p>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="product-price" className={labelClass}>
-                Selling price (KES) <span className="text-red-500">*</span>
-              </label>
-
-              <div className="flex overflow-hidden rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
-                <span className="flex items-center border-r border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-500">
-                  KES
-                </span>
-
-                <input
-                  id="product-price"
-                  className="w-full min-w-0 px-4 py-3 text-sm text-slate-900 outline-none"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={price}
-                  onChange={(event) => setPrice(event.target.value)}
-                  required
-                />
-              </div>
+          <div>
+            <label htmlFor="product-price" className={labelClass}>
+              Selling price (KES) <span className="text-red-500">*</span>
+            </label>
+            <div className="flex overflow-hidden rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
+              <span className="flex items-center border-r border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-500">
+                KES
+              </span>
+              <input
+                id="product-price"
+                className="w-full min-w-0 px-4 py-3 text-sm text-slate-900 outline-none"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                required
+              />
             </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">
-                  Track inventory
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Manage availability using stock quantity.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                role="switch"
-                aria-checked={trackStock}
-                onClick={() => setTrackStock((value) => !value)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                  trackStock ? "bg-emerald-600" : "bg-slate-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
-                    trackStock ? "left-6" : "left-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {trackStock ? (
-              <div>
-                <label htmlFor="stock-quantity" className={labelClass}>
-                  Stock quantity
-                </label>
-
-                <input
-                  id="stock-quantity"
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={stockQuantity}
-                  onChange={(event) => setStockQuantity(event.target.value)}
-                  required
-                />
-
-                <p className="mt-1.5 text-xs text-slate-400">
-                  Availability is automatically determined by this quantity.
-                </p>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Available for enquiry
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Set availability manually.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={manualAvailability}
-                  onClick={() =>
-                    setManualAvailability((value) => !value)
-                  }
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-                    manualAvailability ? "bg-emerald-600" : "bg-slate-300"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
-                      manualAvailability ? "left-6" : "left-1"
-                    }`}
-                  />
-                </button>
-              </div>
-            )}
           </div>
         </section>
 

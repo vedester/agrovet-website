@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon";
+import CartLink from "@/components/cart/CartLink";
 
 type SiteHeaderViewProps = {
   businessName: string;
@@ -106,21 +107,26 @@ export default function SiteHeaderView({ businessName, whatsappUrl }: SiteHeader
           })}
         </nav>
 
-        {/* Desktop WhatsApp CTA */}
-        {whatsappUrl && (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden shrink-0 items-center justify-center gap-2 rounded-pill bg-brand-800 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-500 md:inline-flex"
-          >
-            <WhatsAppIcon className="size-5" />
-            WhatsApp Us
-          </a>
-        )}
+        {/* Desktop cart and WhatsApp actions */}
+        <div className="hidden shrink-0 items-center gap-3 md:flex">
+          <CartLink />
+          {whatsappUrl && (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-pill bg-brand-800 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-500"
+            >
+              <WhatsAppIcon className="size-5" />
+              WhatsApp Us
+            </a>
+          )}
+        </div>
 
-        {/* Mobile menu button */}
-        <button
+        {/* Mobile cart and menu controls */}
+        <div className="flex shrink-0 items-center gap-2 md:hidden">
+          <CartLink />
+          <button
           ref={menuButtonRef}
           type="button"
           aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -130,7 +136,8 @@ export default function SiteHeaderView({ businessName, whatsappUrl }: SiteHeader
           className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-line text-2xl text-brand-900 transition-colors hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 md:hidden"
         >
           <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Mobile navigation */}
